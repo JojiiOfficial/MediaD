@@ -10,3 +10,4 @@ edition = "2018"
 [dependencies]
 evdev = "0.10.2"
 mpris = "2.0.0-rc2"
+rust-pulsectl-fork = "0.2.11"

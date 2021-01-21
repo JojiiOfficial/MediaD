@@ -1,6 +1,8 @@
 use std::path::Path;
 
 use mpris::PlayerFinder;
+use pulsectl::controllers::DeviceControl;
+use pulsectl::controllers::SinkController;
 
 fn main() {
     let device_path = std::env::args().nth(1).unwrap().to_owned();
@@ -45,10 +47,10 @@ fn run_key_event(code: u16, value: i32, shared_state: &mut KeyState) -> Result<(
     // Execute action
     match code {
         /*
-        x if x == evdev::KEY_VOLUMEUP as u16 => println!("vol up"),
-        x if x == evdev::KEY_VOLUMEDOWN as u16 => println!("vol down"),
         x if x == evdev::KEY_MUTE as u16 => println!("vol down"),
         */
+        x if x == evdev::KEY_VOLUMEUP as u16 => volume_action(0.05),
+        x if x == evdev::KEY_VOLUMEDOWN as u16 => volume_action(-0.05),
         x if x == evdev::KEY_NEXTSONG as u16 => run_mpris_action(MprisAction::NextSong),
         x if x == evdev::KEY_PREVIOUSSONG as u16 => run_mpris_action(MprisAction::PreviousSong),
         x if x == evdev::KEY_PLAYPAUSE as u16 => run_mpris_action(MprisAction::PlayPause),
@@ -78,4 +80,19 @@ fn run_mpris_action(action: MprisAction) -> Result<(), String> {
         MprisAction::PreviousSong => player.previous(),
     }
     .map_err(|i| i.to_string())
+}
+
+fn volume_action(delta: f64) -> Result<(), String> {
+    let mut handler = SinkController::create().map_err(|_| "controller error".to_owned())?;
+    let device = handler
+        .get_default_device()
+        .map_err(|_| "controller error".to_owned())?;
+
+    if delta < 0 as f64 {
+        handler.decrease_device_volume_by_percent(device.index, delta * -1 as f64);
+    } else {
+        handler.increase_device_volume_by_percent(device.index, delta);
+    }
+
+    Ok(())
 }
