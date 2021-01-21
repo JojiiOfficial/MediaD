@@ -1,0 +1,32 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: |
+        sudo apt update && sudo apt install libdbus-1-dev libbluetooth-dev libpulse-dev -y
+        cargo build --verbose --no-default-features
+    - name: test
+      run: |
+        sudo apt update && sudo apt install libdbus-1-dev libbluetooth-dev libpulse-dev -y
+        cargo test --verbose --no-default-features
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: 
+      run: |
+        sudo apt update && sudo apt install libdbus-1-dev libbluetooth-dev libpulse-dev -y
+        cargo clippy --no-default-features
