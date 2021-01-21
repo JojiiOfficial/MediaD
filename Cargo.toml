@@ -1,0 +1,12 @@
+[package]
+name = "mediad"
+version = "0.1.0"
+license = "GPL-3.0"
+authors = ["jojii <jojii@gmx.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+evdev = "0.10.2"
+mpris = "2.0.0-rc2"
