@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, thread, time::Duration};
 
 use mpris::PlayerFinder;
 use pulsectl::controllers::{DeviceControl, SinkController};
@@ -19,6 +19,7 @@ fn main() {
     let mut state = KeyState::default();
 
     loop {
+        thread::sleep(Duration::from_millis(10));
         for ev in device.events_no_sync().unwrap() {
             if ev._type != 1 {
                 continue;
