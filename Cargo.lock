@@ -130,6 +130,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "epoll"
+version = "4.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20df693c700404f7e19d4d6fae6b15215d2913c27955d2b9d6f2c0f537511cd0"
+dependencies = [
+ "bitflags 1.2.1",
+ "libc",
+]
+
+[[package]]
 name = "error-chain"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -270,6 +280,7 @@ dependencies = [
 name = "mediad"
 version = "0.1.2"
 dependencies = [
+ "epoll",
  "evdev",
  "mpris",
  "rust-pulsectl-fork",

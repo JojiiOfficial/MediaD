@@ -1,5 +1,6 @@
-use std::{path::Path, thread, time::Duration};
+use std::path::Path;
 
+use epoll::{Event, Events};
 use mpris::PlayerFinder;
 use pulsectl::controllers::{DeviceControl, SinkController};
 
@@ -18,8 +19,26 @@ fn main() {
         evdev::Device::open(&Path::new("/dev/input/by-id").join(&device_path)).unwrap();
     let mut state = KeyState::default();
 
+    // Request epoll FD
+    let epoll_fd = epoll::create(true).expect("Couldn't open epoll FD. Update your kernel!");
+
+    // Add device's fd to epoll's FD
+    epoll::ctl(
+        epoll_fd,
+        epoll::ControlOptions::EPOLL_CTL_ADD,
+        device.fd(),
+        Event::new(Events::EPOLLIN | Events::EPOLLET, 0),
+    )
+    .expect("Couldn't add devices fd to epoll");
+
+    // Epoll buffer
+    let mut events = [Event::new(Events::empty(), 0); 1];
+
     loop {
-        thread::sleep(Duration::from_millis(10));
+        // Wait for epoll events
+        epoll::wait(epoll_fd, -1, &mut events).expect("epoll wait failed");
+
+        // Handle all new events
         for ev in device.events_no_sync().unwrap() {
             if ev._type != 1 {
                 continue;
