@@ -15,11 +15,24 @@ KERNEL=="event*", SUBSYSTEM=="input", RUN+="/usr/bin/setfacl -m u:<USER>:rw /dev
 ```
 Reboot, or run the command from [Testing](#Testing) to apply changes
 
-# Compilation
+# Installation
+
+## Pacman repo
+You can get it precompiled from my [pacman repository](https://repo.jojii.de)
+
+## AUR
+`yay -S mediad`
+
+## Compilation
+#### Requirements (make depends)
+Arch: libpulse dbus <br>
+Fedora: dbus-devel 
+<br>
+
+Run following command:
 ```
-cargo build --release
+cargo install mediad
 ```
-The binary is located inside ./target/release/mediad
 
 # Usage
 ```
