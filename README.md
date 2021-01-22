@@ -5,7 +5,7 @@ A very simple and lightweight deamon to handle keyboard media button events easi
 ### Testing
 Run followig command. Replace 'USER' with your username and 'DEVICE' with the device you want to let your music get controlled from
 ```bash
-sudo setfacl -m u:<USER>:r /dev/input/by-id/<DEVICE>
+sudo setfacl -m u:<USER>:rw /dev/input/by-id/<DEVICE>
 ```
 
 ### Permanent changes
