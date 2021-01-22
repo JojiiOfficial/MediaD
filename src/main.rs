@@ -4,6 +4,15 @@ use mpris::PlayerFinder;
 use pulsectl::controllers::{DeviceControl, SinkController};
 
 fn main() {
+    if std::env::args().count() < 2 {
+        println!(
+            "Usage: {} <device-id>",
+            std::env::args().nth(0).unwrap_or("mediad".to_owned())
+        );
+
+        return;
+    }
+
     let device_path = std::env::args().nth(1).unwrap().to_owned();
     let mut device =
         evdev::Device::open(&Path::new("/dev/input/by-id").join(&device_path)).unwrap();
