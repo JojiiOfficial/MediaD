@@ -78,9 +78,9 @@ enum MprisAction {
 /// Run Mpris command
 fn run_mpris_action(action: MprisAction) -> Result<(), String> {
     let player = PlayerFinder::new()
-        .expect("Could not connect to D-Bus")
+        .map_err(|_| "Player finder can't created".to_string())?
         .find_active()
-        .expect("Could not find any player");
+        .map_err(|_| "Can't find active player".to_string())?;
 
     match action {
         MprisAction::Stop => player.stop(),
