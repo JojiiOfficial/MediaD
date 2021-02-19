@@ -1,10 +1,13 @@
+use human_panic::setup_panic;
 use std::path::Path;
 
 use epoll::{Event, Events};
-use mpris::PlayerFinder;
+use mpris::{PlaybackStatus, PlayerFinder};
 use pulsectl::controllers::{DeviceControl, SinkController};
 
 fn main() {
+    setup_panic!();
+
     if std::env::args().count() < 2 {
         println!(
             "Usage: {} <device-id>",
@@ -97,8 +100,22 @@ enum MprisAction {
 fn run_mpris_action(action: MprisAction) -> Result<(), String> {
     let player = PlayerFinder::new()
         .map_err(|_| "Player finder can't created".to_string())?
-        .find_active()
-        .map_err(|_| "Can't find active player".to_string())?;
+        .find_all()
+        .map_err(|_| "can't find all players".to_string())?;
+
+    let player = {
+        if player.len() == 1 {
+            player.first().ok_or("no first player".to_string())?
+        } else {
+            player
+                .iter()
+                .find(|i| {
+                    i.get_playback_status().unwrap_or(PlaybackStatus::Stopped)
+                        != PlaybackStatus::Stopped
+                })
+                .ok_or("no non-stopped player found")?
+        }
+    };
 
     match action {
         MprisAction::Stop => player.stop(),
