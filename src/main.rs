@@ -2,8 +2,19 @@ use human_panic::setup_panic;
 use std::path::Path;
 
 use epoll::{Event, Events};
-use mpris::{PlaybackStatus, PlayerFinder};
+use lazy_static::lazy_static;
+use mpris::{PlaybackStatus, Player, PlayerFinder};
 use pulsectl::controllers::{DeviceControl, SinkController};
+use std::sync::Mutex;
+
+#[derive(Default)]
+struct Data {
+    last_active_player: Option<String>,
+}
+
+lazy_static! {
+    static ref GLOBAL_DATA: Mutex<Data> = Mutex::new(Data::default());
+}
 
 fn main() {
     setup_panic!();
@@ -11,13 +22,15 @@ fn main() {
     if std::env::args().count() < 2 {
         println!(
             "Usage: {} <device-id>",
-            std::env::args().nth(0).unwrap_or("mediad".to_owned())
+            std::env::args()
+                .next()
+                .unwrap_or_else(|| "mediad".to_owned())
         );
 
         return;
     }
 
-    let device_path = std::env::args().nth(1).unwrap().to_owned();
+    let device_path = std::env::args().nth(1).unwrap();
     let mut device =
         evdev::Device::open(&Path::new("/dev/input/by-id").join(&device_path)).unwrap();
     let mut state = KeyState::default();
@@ -89,6 +102,7 @@ fn run_key_event(code: u16, value: i32, shared_state: &mut KeyState) -> Result<(
     }
 }
 
+#[derive(PartialEq)]
 enum MprisAction {
     PlayPause,
     Stop,
@@ -98,24 +112,75 @@ enum MprisAction {
 
 /// Run Mpris command
 fn run_mpris_action(action: MprisAction) -> Result<(), String> {
-    let player = PlayerFinder::new()
+    let found_players = PlayerFinder::new()
         .map_err(|_| "Player finder can't created".to_string())?
         .find_all()
         .map_err(|_| "can't find all players".to_string())?;
 
     let player = {
-        if player.len() == 1 {
-            player.first().ok_or("no first player".to_string())?
+        if found_players.is_empty() {
+            return Err("No player found!".to_string());
+        } else if found_players.len() == 1 {
+            found_players
+                .first()
+                .ok_or_else(|| "no first player".to_string())?
         } else {
-            player
-                .iter()
-                .find(|i| {
-                    i.get_playback_status().unwrap_or(PlaybackStatus::Stopped)
-                        != PlaybackStatus::Stopped
+            // Get all stopped players
+            let stopped_players = get_players_by_state(&found_players, PlaybackStatus::Stopped);
+            let paused_players = get_players_by_state(&found_players, PlaybackStatus::Paused);
+            let playing_players = get_players_by_state(&found_players, PlaybackStatus::Playing);
+
+            // Prefer playing players
+            match playing_players
+                .get(0)
+                .map(|i| Some(i.to_owned()))
+                // Try to use paused player next
+                .unwrap_or_else(|| {
+                    if paused_players.is_empty() {
+                        if stopped_players.len() == 1 {
+                            Some(stopped_players.get(0).unwrap().to_owned())
+                        } else {
+                            None
+                        }
+                    } else if paused_players.len() == 1 {
+                        Some(paused_players.get(0).unwrap().to_owned())
+                    } else {
+                        None
+                    }
                 })
-                .ok_or("no non-stopped player found")?
+                .to_owned()
+            {
+                Some(e) => e,
+                None => {
+                    let alternative = found_players
+                        .first()
+                        .ok_or_else(|| "no first player".to_string())?;
+
+                    let global_data_lock = GLOBAL_DATA.lock().unwrap();
+                    if global_data_lock.last_active_player.is_some() {
+                        found_players
+                            .iter()
+                            .find(|i| {
+                                i.unique_name()
+                                    == global_data_lock.last_active_player.as_ref().unwrap()
+                            })
+                            .unwrap_or(alternative)
+                    } else {
+                        alternative
+                    }
+                }
+            }
         }
     };
+
+    if (action == MprisAction::PreviousSong || action == MprisAction::NextSong)
+        && player
+            .get_playback_status()
+            .map_err(|_| "Can't get playback status".to_string())?
+            == PlaybackStatus::Stopped
+    {}
+
+    GLOBAL_DATA.lock().unwrap().last_active_player = Some(player.unique_name().to_owned());
 
     match action {
         MprisAction::Stop => player.stop(),
@@ -124,6 +189,16 @@ fn run_mpris_action(action: MprisAction) -> Result<(), String> {
         MprisAction::PreviousSong => player.previous(),
     }
     .map_err(|i| i.to_string())
+}
+
+fn get_players_by_state<'a, 'b>(
+    players: &'b Vec<Player<'a>>,
+    state: PlaybackStatus,
+) -> Vec<&'b Player<'a>> {
+    players
+        .iter()
+        .filter(|i| i.get_playback_status().unwrap_or(PlaybackStatus::Stopped) == state)
+        .collect()
 }
 
 /// Set default device's volume
@@ -142,7 +217,7 @@ fn volume_action(delta: f64) -> Result<(), String> {
     }
 
     if delta < 0 as f64 {
-        handler.decrease_device_volume_by_percent(device.index, delta * -1 as f64);
+        handler.decrease_device_volume_by_percent(device.index, delta * -1_f64);
     } else {
         handler.increase_device_volume_by_percent(device.index, delta);
     }
