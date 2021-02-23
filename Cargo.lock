@@ -319,7 +319,7 @@ dependencies = [
 
 [[package]]
 name = "mediad"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "epoll",
  "evdev",
